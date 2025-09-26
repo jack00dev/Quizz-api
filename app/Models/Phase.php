@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Phase extends Model
 {
-    protected $fillable = ['title', 'description', 'points_per_question'];
+    protected $fillable = ['title', 'description', 'points_per_question', 'niveau'];
 
     public function themes()
     {

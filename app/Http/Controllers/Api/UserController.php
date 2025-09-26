@@ -22,30 +22,34 @@ class UserController extends Controller
     {
         try {
             $request->validate([
-                'name' => "required",
+                'name' => "required|string|max:255",
                 'email' => "required|email|unique:users",
             ]);
 
-            $user = User::create($request->all());
+            $user = User::create([
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
+            ]);
+
             $token = $user->createToken($user->id)->plainTextToken;
 
             Auth::login($user);
-
 
             return response()->json([
                 'user' => $user,
                 'token' => $token,
             ], 201);
         } catch (ValidationException $err) {
-            return [
+            return response()->json([
                 'message' => "Données non valides",
                 'error' => $err->errors(),
-            ];
+            ], 422);
         } catch (\Throwable $th) {
-            return $th;
+            return response()->json([
+                'message' => "Erreur serveur",
+                'error' => $th->getMessage(),
+            ], 500);
         }
-        // $user = User::create($request->only('name', 'email'));
-        // return response()->json($user, 201);
     }
 
     public function login(Request $request)
@@ -66,7 +70,7 @@ class UserController extends Controller
             if (!$user) {
                 $user = User::create([
                     'email' => $request->email,
-                    'name' => ''
+                    'name' => $request->name,
                 ]);
 
                 $user->tokens()->delete();
@@ -115,8 +119,13 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
         $user = User::findOrFail($id);
-        $user->update($request->only('name', 'email'));
+        $user->update(['name' => $request->name]);
+
         return response()->json($user, 200);
     }
 

@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('description')->nullable();
-            $table->integer('points_per_question');
+            $table->integer('points_per_question')->unsigned();
+            $table->enum('niveau', ['débutant', 'intermédiaire', 'avancé'])->default('débutant');
             $table->timestamps();
         });
     }
