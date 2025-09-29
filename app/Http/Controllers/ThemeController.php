@@ -4,35 +4,111 @@ namespace App\Http\Controllers;
 
 use App\Models\Theme;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ThemeController extends Controller
 {
     public function index()
     {
-        return response()->json(Theme::with('phase')->get(), 200);
+        return Theme::all();
     }
 
     public function store(Request $request)
     {
-        $theme = Theme::create($request->only('title', 'phase_id'));
-        return response()->json($theme, 201);
+        try {
+
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'phase_id' => 'required',
+            ]);
+
+            $data = $request->all();
+            $data["owner_id"] = Auth::id();
+
+            return Theme::create($data);
+        } catch (ValidationException $err) {
+            return [
+                'message' => "Données non valides",
+                'error' => $err->errors(),
+            ];
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 
     public function show($id)
     {
-        return response()->json(Theme::with('questions')->findOrFail($id), 200);
+        try {
+
+            $theme = Theme::find($id);
+
+            if (!$theme) {
+                return [
+                    "message" => "Thème non trouvé !",
+                ];
+            }
+
+            return $theme;
+
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 
     public function update(Request $request, $id)
     {
-        $theme = Theme::findOrFail($id);
-        $theme->update($request->only('title', 'phase_id'));
-        return response()->json($theme, 200);
+
+        try {
+
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'phase_id' => 'required',
+            ]);
+
+            $theme = Theme::find($id);
+
+            if (!$theme) {
+                return [
+                    "message" => "Thème non trouvé !",
+                ];
+            }
+
+            $theme->update($request->all());
+
+            return [
+                "message" => "Mise à jour effectuée !",
+            ];
+        } catch (ValidationException $err) {
+            return [
+                'message' => "Données non valides",
+                'error' => $err->errors(),
+            ];
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 
     public function destroy($id)
     {
-        Theme::destroy($id);
-        return response()->json(null, 204);
+        try {
+
+            $theme = Theme::find($id);
+
+            if (!$theme) {
+                return [
+                    "message" => "Thème non trouvé !",
+                ];
+            }
+
+            $theme->delete();
+
+            return [
+                "message" => "Suppression effectuée !",
+            ];
+
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 }

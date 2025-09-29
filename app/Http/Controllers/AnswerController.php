@@ -5,52 +5,131 @@ namespace App\Http\Controllers;
 use App\Models\Answer;
 use App\Models\Stat;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class AnswerController extends Controller
 {
     public function index()
     {
-        return response()->json(Answer::with(['user', 'question', 'option'])->get(), 200);
+        return Answer::all();
     }
 
     public function store(Request $request)
     {
-        $answer = Answer::create($request->only('user_id', 'question_id', 'option_id'));
 
-        // Vérifier si la réponse est correcte
-        $option = $answer->option;
-        $phase = $answer->question->theme->phase;
+        try {
 
-        if ($option->is_correct) {
-            // Chercher la stat de l’utilisateur pour cette phase
-            $stat = Stat::firstOrCreate(
-                ['user_id' => $answer->user_id, 'phase_id' => $phase->id],
-                ['score' => 0]
-            );
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'phase_id' => 'required|exists:phases,id',
+                'theme_id' => 'required|exists:themes,id',
+                'question_id' => 'required|exists:questions,id',
+                'option_id' => 'required|exists:options,id',
+            ]);
 
-            // Ajouter les points
-            $stat->score += $phase->points_per_question;
-            $stat->save();
+            $data = $request->all();
+            $data["owner_id"] = Auth::id();
+
+            return Answer::create($data);
+        } catch (ValidationException $err) {
+            return [
+                'message' => "Données non valides",
+                'error' => $err->errors(),
+            ];
+        } catch (\Throwable $th) {
+            return $th;
         }
-
-        return response()->json($answer, 201);
     }
 
     public function show($id)
     {
-        return response()->json(Answer::with(['user', 'question', 'option'])->findOrFail($id), 200);
+        try {
+
+            $answer = Answer::find($id);
+
+            if (!$answer) {
+                return [
+                    "message" => "Réponse non trouvé !",
+                ];
+            }
+
+            return $answer;
+
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 
     public function update(Request $request, $id)
     {
-        $answer = Answer::findOrFail($id);
-        $answer->update($request->only('user_id', 'question_id', 'option_id'));
-        return response()->json($answer, 200);
+        try {
+
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'phase_id' => 'required|exists:phases,id',
+                'theme_id' => 'required|exists:themes,id',
+                'question_id' => 'required|exists:questions,id',
+                'option_id' => 'required|exists:options,id',
+            ]);
+
+            $answer = Answer::find($id);
+
+            if (!$answer) {
+                return [
+                    "message" => "Réponse non trouvé !",
+                ];
+            }
+
+            $answer->update($request->all());
+
+            return [
+                "message" => "Mise à jour effectuée !",
+            ];
+        } catch (ValidationException $err) {
+            return [
+                'message' => "Données non valides",
+                'error' => $err->errors(),
+            ];
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
+
+    public function getUserAnswers($user_id)
+    {
+        $answers = Answer::where('user_id', $user_id)->get();
+
+        if ($answers->isEmpty()) {
+            // Retourner un tableau vide plutôt qu’un message
+            return response()->json([], 200);
+        }
+
+        return response()->json($answers, 200);
+    }
+
+
 
     public function destroy($id)
     {
-        Answer::destroy($id);
-        return response()->json(null, 204);
+        try {
+
+            $answer = Answer::find($id);
+
+            if (!$answer) {
+                return [
+                    "message" => "Réponse non trouvé !",
+                ];
+            }
+
+            $answer->delete();
+
+            return [
+                "message" => "Suppression effectuée !",
+            ];
+
+        } catch (\Throwable $th) {
+            return $th;
+        }
     }
 }

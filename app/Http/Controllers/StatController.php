@@ -10,25 +10,33 @@ class StatController extends Controller
     // Score total de l’utilisateur
     public function userTotal($user_id)
     {
-        $total = Stat::where('user_id', $user_id)->sum('score');
+        $score = Stat::where('user_id', $user_id)->sum('score');
+        $total = Stat::where('user_id', $user_id)->sum('total');
 
         return response()->json([
             'user_id' => $user_id,
-            'total_score' => $total
+            'score' => $score,
+            'total' => $total,
+            'percentage' => $total > 0 ? round($score / $total * 100, 2) : 0,
         ]);
     }
 
     // Score par phase
     public function userByPhase($user_id, $phase_id)
     {
-        $stat = Stat::where('user_id', $user_id)
-                    ->where('phase_id', $phase_id)
-                    ->first();
+        $stats = Stat::where('user_id', $user_id)
+                     ->where('phase_id', $phase_id)
+                     ->get();
+
+        $score = $stats->sum('score');
+        $total = $stats->sum('total');
 
         return response()->json([
             'user_id' => $user_id,
             'phase_id' => $phase_id,
-            'score' => $stat ? $stat->score : 0
+            'score' => $score,
+            'total' => $total,
+            'percentage' => $total > 0 ? round($score / $total * 100, 2) : 0,
         ]);
     }
 
@@ -36,18 +44,55 @@ class StatController extends Controller
     public function userAllPhases($user_id)
     {
         $stats = Stat::where('user_id', $user_id)
-                    ->with('phase')
-                    ->get();
+                     ->with('phase')
+                     ->get()
+                     ->groupBy('phase_id');
+
+        $phases = $stats->map(function ($group) {
+            $score = $group->sum('score');
+            $total = $group->sum('total');
+            $phase = $group->first()->phase;
+
+            return [
+                'phase_id' => $group->first()->phase_id,
+                'phase_title' => $phase ? $phase->title : 'Inconnue',
+                'score' => $score,
+                'total' => $total,
+                'percentage' => $total > 0 ? round($score / $total * 100, 2) : 0,
+            ];
+        })->values();
 
         return response()->json([
             'user_id' => $user_id,
-            'phases' => $stats->map(function ($stat) {
-                return [
-                    'phase_id' => $stat->phase_id,
-                    'phase_title' => $stat->phase->title,
-                    'score' => $stat->score
-                ];
-            })
+            'phases' => $phases,
+        ]);
+    }
+
+    // Tous les scores par thème (bonus)
+    public function userAllThemes($user_id)
+    {
+        $stats = Stat::where('user_id', $user_id)
+                     ->with('theme')
+                     ->get()
+                     ->groupBy('theme_id');
+
+        $themes = $stats->map(function ($group) {
+            $score = $group->sum('score');
+            $total = $group->sum('total');
+            $theme = $group->first()->theme;
+
+            return [
+                'theme_id' => $group->first()->theme_id,
+                'theme_title' => $theme ? $theme->title : 'Inconnu',
+                'score' => $score,
+                'total' => $total,
+                'percentage' => $total > 0 ? round($score / $total * 100, 2) : 0,
+            ];
+        })->values();
+
+        return response()->json([
+            'user_id' => $user_id,
+            'themes' => $themes,
         ]);
     }
 }

@@ -12,86 +12,118 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // public function tokenLogin()
-    // {
-    //     return [
-    //         "message" => "Authentification requise pour avoir un token valide.",
-    //     ];
-    // }
+    public function tokenLogin()
+    {
+        return [
+            "message" => "Authentification requise pour avoir un token valide.",
+        ];
+    }
+    public function register(Request $request)
+    {
+        try {
+            $request->validate([
+                'name' => "required|string|max:255",
+                'email' => "required|email|unique:users",
+            ]);
 
+            $user = User::create([
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
+            ]);
 
-    // public function login(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email'
-    //     ]);
+            $token = $user->createToken($user->id)->plainTextToken;
 
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'error' => $validator->errors()
-    //         ], 422);
-    //     }
+            Auth::login($user);
 
-    //     $user = User::where('email', $request->email)->first();
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+            ], 201);
+        } catch (ValidationException $err) {
+            return response()->json([
+                'message' => "Données non valides",
+                'error' => $err->errors(),
+            ], 422);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => "Erreur serveur",
+                'error' => $th->getMessage(),
+            ], 500);
+        }
+    }
 
-    //     if (!$user) {
-    //         $user = User::create([
-    //             'email' => $request->email,
-    //             'name' => ''
-    //         ]);
+    public function login(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email'
+            ]);
 
-    //         $user->tokens()->delete();
-    //         Auth::login($user);
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => $validator->errors()
+                ], 422);
+            }
 
-    //         $token = $user->createToken($user->id)->plainTextToken;
+            $user = User::where('email', $request->email)->first();
 
-    //         return response()->json([
-    //             'user' => $user,
-    //             'is_new' => true,
-    //             'token' => $token
-    //         ]);
-    //     }
+            if (!$user) {
+                $user = User::create([
+                    'email' => $request->email,
+                    'name' => $request->name,
+                ]);
 
-    //     $user->tokens()->delete();
-    //     Auth::login($user);
-    //     $token = $user->createToken($user->id)->plainTextToken;
+                $user->tokens()->delete();
+                Auth::login($user);
 
-    //     return response()->json([
-    //         'user' => $user,
-    //         'is_new' => false,
-    //         'token' => $token
-    //     ]);
-    // }
+                $token = $user->createToken($user->id)->plainTextToken;
 
-    // public function update(Request $request, string $id)
-    // {
-    //     try {
-    //         $user = User::findOrFail($id);
-    //         $user->update($request->only('name', 'email'));
-    //         return response()->json(['message' => "Profil modifié avec succès", $user], 200);
-    //     } catch (\Throwable $th) {
-    //         //throw $th;
-    //     }
-    // }
+                return response()->json([
+                    'user' => $user,
+                    'is_new' => true,
+                    'token' => $token
+                ], 200);
+            }
 
-    // public function logout(Request $request)
-    // {
-    //     try {
-    //         $user = Auth::user();
+            $user->tokens()->delete();
+            Auth::login($user);
 
-    //         $user->tokens()->delete();
-    //         Auth::logout();
+            $token = $user->createToken($user->id)->plainTextToken;
 
-    //         return [
-    //             'message' => "Déconnexion réussie.",
-    //         ];
-    //     } catch (ValidationException $err) {
-    //     } catch (\Throwable $th) {
-    //         return [
-    //             'message' => "Déconnexion réussie.",
-    //         ];
-    //     }
-    // }
+            return response()->json([
+                'user' => $user,
+                'is_new' => false,
+                'token' => $token
+            ], 200);
+        } catch (ValidationException $err) {
+            return [
+                'message' => "Email non valides",
+                'error' => $err->errors(),
+            ];
+        } catch (\Throwable $th) {
+            return $th;
+        }
+
+    }
+
+    public function logout(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $user->tokens()->delete();
+            Auth::logout();
+
+            return [
+                'message' => "Déconnexion réussie.",
+            ];
+        } catch (ValidationException $err) {
+        } catch (\Throwable $th) {
+            return [
+                'message' => "Déconnexion réussie.",
+            ];
+        }
+    }
 
 }
 
